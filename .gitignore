@@ -155,6 +155,7 @@ cython_debug/
 # Project specific
 Plantilla/
 /node_modules/
+.agents/
 
 # Django Migrations
 **/migrations/*.py
