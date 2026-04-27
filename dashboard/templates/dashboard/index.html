@@ -1,0 +1,43 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Inicio{% endblock %}
+{% block page_title %}Dashboard Principal{% endblock %}
+
+{% block content %}
+    <!-- ═══ STAT CARDS ═══ -->
+    <div class="row g-4 mb-4">
+        <!-- Card Clientes -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card bg-purple">
+                <div class="stat-icon"><i class="bi bi-person-hearts"></i></div>
+                <div>
+                    <div class="stat-label">Clientes Registrados</div>
+                    <div class="stat-value">{{ total_customers }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Motos -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card bg-teal">
+                <div class="stat-icon"><i class="bi bi-bicycle"></i></div>
+                <div>
+                    <div class="stat-label">Total Motocicletas</div>
+                    <div class="stat-value">{{ total_motos }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Espacio reservado para más métricas (Finanzas/Inventario) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card" style="background: rgba(255,255,255,0.4); border: 2px dashed var(--border); box-shadow: none;">
+                <div class="stat-icon" style="background: rgba(0,0,0,0.05);"><i class="bi bi-cash-stack" style="color: var(--muted)"></i></div>
+                <div>
+                    <div class="stat-label" style="color: var(--muted)">Facturación</div>
+                    <div class="stat-value" style="color: var(--muted)">$ --</div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+{% endblock %}

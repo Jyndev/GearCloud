@@ -1,0 +1,263 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-semibold mb-0" style="font-size:18px">Directorio de Clientes</h3>
+        <p class="text-muted small">Administra el portafolio de clientes y sus motocicletas</p>
+    </div>
+    <button class="btn-gc d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createCustomerModal">
+        <i class="bi bi-person-plus-fill"></i> Registrar Cliente
+    </button>
+</div>
+
+<!-- Mensajes de Sistema -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert gc-alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-4" role="alert">
+            <div class="icon">
+                <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% elif message.tags == 'error' %}bi-x-circle-fill{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %}"></i>
+            </div>
+            <div class="text">
+                <h4>
+                    {% if message.tags == 'success' %}¡Éxito!
+                    {% elif message.tags == 'error' %}¡Error!
+                    {% elif message.tags == 'warning' %}¡Atención!
+                    {% else %}Información
+                    {% endif %}
+                </h4>
+                <p>{{ message|safe }}</p>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Tabla de Clientes -->
+<div class="module-card">
+    <h3>Listado General de Clientes</h3>
+    <div class="table-responsive">
+        <table class="table-gc">
+            <thead>
+                <tr>
+                    <th>Cédula / NIT</th>
+                    <th>Propietario</th>
+                    <th>Teléfono</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td class="fw-semibold">{{ customer.cedula }}</td>
+                    <td class="text-muted">{{ customer.nombre }}</td>
+                    <td class="text-muted">{{ customer.telefono }}</td>
+                    <td>
+                        {% if customer.is_active %}
+                            <span class="badge-status badge-success">Activo</span>
+                        {% else %}
+                            <span class="badge-status badge-danger">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="d-flex justify-content-end gap-1">
+                            <a href="{{ customer.whatsapp_url }}" target="_blank" class="btn-table-action text-success" title="WhatsApp">
+                                <i class="bi bi-whatsapp"></i>
+                            </a>
+                            <a href="{% url 'customers:customer_detail' customer.pk %}" class="btn-table-action" title="Ver Perfil">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <button class="btn-table-action text-primary" title="Editar"
+                                onclick="openEditModal('{{ customer.pk }}', '{{ customer.cedula }}', '{{ customer.nombre }}', '{{ customer.telefono }}', '{{ customer.direccion }}', '{{ customer.is_active|lower }}')">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="bi bi-people display-4 d-block mb-3 opacity-50"></i>
+                            No hay clientes registrados aún.
+                        </td>
+                    {% endfor %}
+                </tbody>
+            </table>
+    </div>
+</div>
+
+<!-- Modal Crear Cliente -->
+<div class="modal fade" id="createCustomerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow" style="border-radius: 18px;">
+      <form method="post" id="createCustomerForm" action="{% url 'customers:create_customer' %}" autocomplete="off">
+          {% csrf_token %}
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold">Registrar Nuevo Cliente</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body px-4">
+              <div id="createAlertContainer"></div>
+              {% for field in create_form %}
+                {% if field.name != 'is_active' %}
+                <div class="floating-field">
+                  <i class="bi {% if 'cedula' in field.name %}bi-credit-card{% elif 'telefono' in field.name %}bi-telephone{% elif 'direccion' in field.name %}bi-geo-alt{% else %}bi-person{% endif %} input-icon"></i>
+                  {{ field }}
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                {% endif %}
+              {% endfor %}
+              <!-- Campo is_active oculto por defecto al crear -->
+              <input type="hidden" name="is_active" value="True">
+          </div>
+          <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+            <button type="button" class="btn-gc-outline" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-gc">Registrar Cliente</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Cliente -->
+<div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow" style="border-radius: 18px;">
+      <form method="post" id="editCustomerForm" action="#" autocomplete="off">
+          {% csrf_token %}
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold">Editar Cliente</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body px-4">
+              <div id="editAlertContainer"></div>
+              
+              <div class="floating-field">
+                  <i class="bi bi-credit-card input-icon"></i>
+                  <input type="text" name="cedula" id="edit_cedula" class="form-control" required placeholder=" " autocomplete="off">
+                  <label for="edit_cedula">Cédula o NIT</label>
+              </div>
+              <div class="floating-field">
+                  <i class="bi bi-person input-icon"></i>
+                  <input type="text" name="nombre" id="edit_nombre" class="form-control" required placeholder=" " autocomplete="off">
+                  <label for="edit_nombre">Nombre o Razón Social</label>
+              </div>
+              <div class="floating-field">
+                  <i class="bi bi-telephone input-icon"></i>
+                  <input type="text" name="telefono" id="edit_telefono" class="form-control" required placeholder=" " autocomplete="off">
+                  <label for="edit_telefono">Número de Teléfono</label>
+              </div>
+              <div class="floating-field">
+                  <i class="bi bi-geo-alt input-icon"></i>
+                  <input type="text" name="direccion" id="edit_direccion" class="form-control" placeholder=" " autocomplete="off">
+                  <label for="edit_direccion">Dirección de Residencia</label>
+              </div>
+              
+              <div class="form-check mt-3 ps-4 mb-2">
+                  <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active">
+                  <label class="form-check-label text-muted" for="edit_is_active">Cliente Activo en el Sistema</label>
+              </div>
+          </div>
+          <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-end gap-2">
+            <button type="button" class="btn-gc-outline" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn-gc">Guardar Cambios</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEditModal(id, cedula, nombre, telefono, direccion, isActive) {
+    document.getElementById('editCustomerForm').action = "/customers/update/" + id + "/";
+    document.getElementById('edit_cedula').value = cedula;
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_telefono').value = telefono;
+    
+    // Al ser un campo que permite nulos o en blanco, manejamos posible "None" string si django lo escupe sucio
+    if(direccion !== 'None' && direccion !== '') {
+        document.getElementById('edit_direccion').value = direccion;
+    } else {
+        document.getElementById('edit_direccion').value = '';
+    }
+    
+    document.getElementById('edit_is_active').checked = (isActive === 'true' || isActive === 'True');
+    document.getElementById('editAlertContainer').innerHTML = ''; // Limpiar errores
+    
+    var editModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));
+    editModal.show();
+}
+
+// Lógica AJAX unificada para formularios
+function setupAjaxForm(formId, alertContainerId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const container = document.getElementById(alertContainerId);
+        container.innerHTML = ''; 
+        
+        const formData = new FormData(form);
+        const actionUrl = form.getAttribute('action');
+        
+        fetch(actionUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+                return null;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.success) {
+                window.location.reload();
+            } else {
+                container.innerHTML = `
+                    <div class="alert gc-alert alert-danger alert-dismissible fade show mb-4" role="alert" style="padding: 0.7rem 1rem;">
+                        <div class="icon" style="flex: 0 0 25px; font-size: 18px; margin-right: 10px;">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </div>
+                        <div class="text">
+                            <h4 style="font-size: 14px; margin-bottom: 2px;">¡Error de Validación!</h4>
+                            <p style="font-size: 12px; line-height: 1.3;">${data.error_html}</p>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 8px;"></button>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Ocurrió un error inesperado al procesar la solicitud.");
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const createModal = document.getElementById('createCustomerModal');
+    if (createModal) {
+        createModal.addEventListener('hidden.bs.modal', function () {
+            document.getElementById('createAlertContainer').innerHTML = '';
+            document.getElementById('createCustomerForm').reset();
+        });
+    }
+
+    setupAjaxForm('createCustomerForm', 'createAlertContainer');
+    setupAjaxForm('editCustomerForm', 'editAlertContainer');
+});
+</script>
+{% endblock %}

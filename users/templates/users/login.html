@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GearCloud · Iniciar Sesión</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{font-family:'Poppins',sans-serif;box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;background:#eef0f5}
+
+    .login-left{
+      width:50%;min-height:100vh;
+      background:linear-gradient(135deg,#6C3AE0 0%,#8B5CF6 50%,#A78BFA 100%);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      color:#fff;padding:3rem;position:relative;overflow:hidden;
+    }
+    .login-left::before{
+      content:'';position:absolute;width:500px;height:500px;
+      background:rgba(255,255,255,.06);border-radius:50%;
+      top:-120px;left:-120px;
+    }
+    .login-left::after{
+      content:'';position:absolute;width:350px;height:350px;
+      background:rgba(255,255,255,.04);border-radius:50%;
+      bottom:-80px;right:-80px;
+    }
+    .login-left .brand{display:flex;align-items:center;gap:.75rem;margin-bottom:2.5rem;z-index:1}
+    .login-left .brand-icon{
+      width:52px;height:52px;border-radius:14px;
+      background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;
+      font-size:1.5rem;
+    }
+    .login-left .brand span{font-size:1.6rem;font-weight:700;font-style:italic}
+    .login-left h1{font-size:2.2rem;font-weight:700;text-align:center;z-index:1;line-height:1.3}
+    .login-left p{font-size:.95rem;opacity:.8;text-align:center;max-width:380px;margin-top:1rem;z-index:1}
+
+    .login-right{
+      width:50%;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      padding:3rem;background:#fff;
+    }
+    .login-box{width:100%;max-width:420px}
+    .login-box h2{font-size:1.5rem;font-weight:700;color:#1e293b;margin-bottom:.25rem}
+    .login-box .subtitle{font-size:.88rem;color:#94a3b8;margin-bottom:2rem}
+
+    /* Floating label styles */
+    .floating-field{position:relative;margin-bottom:1.25rem}
+    .floating-field .input-icon{
+      position:absolute;left:1rem;top:50%;transform:translateY(-50%);
+      color:#94a3b8;font-size:1rem;z-index:4;transition:color .2s;
+    }
+    .floating-field input{
+      width:100%;padding:1.25rem 1rem .5rem 2.75rem;
+      border:1.5px solid #e2e8f0;border-radius:12px;
+      font-size:.9rem;font-family:'Poppins',sans-serif;
+      background:#fff;outline:none;transition:all .2s;
+      color:#1e293b;
+    }
+    .floating-field input:focus{
+      border-color:#6C3AE0;
+      box-shadow:0 0 0 3px rgba(108,58,224,.12);
+    }
+    .floating-field input:focus ~ .input-icon{color:#6C3AE0}
+    .floating-field label{
+      position:absolute;left:2.75rem;top:50%;transform:translateY(-50%);
+      font-size:.9rem;color:#94a3b8;pointer-events:none;
+      transition:all .2s ease;font-weight:500;z-index:3;
+      background:#fff;padding:0 4px;
+    }
+    .floating-field input:focus ~ label,
+    .floating-field input:not(:placeholder-shown) ~ label{
+      top:6px;transform:translateY(0);
+      font-size:.7rem;color:#6C3AE0;font-weight:600;
+      left:2.75rem;
+    }
+    .floating-field input:not(:focus):not(:placeholder-shown) ~ label{
+      color:#64748b;
+    }
+    /* Password toggle */
+    .toggle-pass{
+      position:absolute;right:1rem;top:50%;transform:translateY(-50%);
+      background:none;border:none;color:#94a3b8;cursor:pointer;
+      font-size:1rem;z-index:4;transition:color .2s;
+    }
+    .toggle-pass:hover{color:#6C3AE0}
+
+    .btn-login{
+      width:100%;padding:.75rem;border-radius:14px;border:0;
+      background:linear-gradient(135deg,#6C3AE0,#8B5CF6);
+      color:#fff;font-weight:600;font-size:.95rem;
+      transition:all .2s;box-shadow:0 4px 16px rgba(108,58,224,.3);
+      margin-top: 1rem;
+    }
+    .btn-login:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(108,58,224,.4);background:linear-gradient(135deg,#5B2ED4,#7C4DEB)}
+
+    .form-check-label{font-size:.82rem;color:#64748b}
+    .forgot{font-size:.82rem;color:#6C3AE0;text-decoration:none;font-weight:500}
+    .forgot:hover{text-decoration:underline}
+    .error-msg { font-size: 0.85rem; color: #dc3545; display: block; margin-top: 5px; }
+
+    @media(max-width:768px){
+      .login-left{display:none}
+      .login-right{width:100%}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-left">
+    <div class="brand">
+      <div class="brand-icon"><i class="bi bi-gear-fill"></i></div>
+      <span>GearCloud</span>
+    </div>
+    <h1>Gestión inteligente<br>sobre dos ruedas</h1>
+    <p>Administra tu taller de motocicletas con la plataforma más completa: recepción, diagnóstico, inventario y facturación en un solo lugar.</p>
+    <svg width="280" height="200" viewBox="0 0 280 200" fill="none" style="margin-top:2.5rem;opacity:.9">
+      <circle cx="140" cy="130" r="60" stroke="rgba(255,255,255,.3)" stroke-width="2" fill="none"/>
+      <circle cx="140" cy="130" r="45" stroke="rgba(255,255,255,.15)" stroke-width="1.5" fill="none"/>
+      <circle cx="140" cy="130" r="8" fill="rgba(255,255,255,.4)"/>
+      <line x1="80" y1="90" x2="200" y2="90" stroke="rgba(255,255,255,.2)" stroke-width="1.5"/>
+      <rect x="90" y="60" width="100" height="35" rx="8" fill="rgba(255,255,255,.1)" stroke="rgba(255,255,255,.2)"/>
+      <rect x="100" y="68" width="40" height="4" rx="2" fill="rgba(255,255,255,.3)"/>
+      <rect x="100" y="78" width="60" height="3" rx="1.5" fill="rgba(255,255,255,.15)"/>
+    </svg>
+  </div>
+
+  <div class="login-right">
+    <div class="login-box">
+      <h2>Bienvenido de vuelta 👋</h2>
+      <p class="subtitle">Ingresa tus credenciales para acceder al sistema</p>
+
+      {% if form.errors %}
+      <div class="alert alert-danger" style="font-size: 0.85rem;" role="alert">
+        Nombre de usuario o contraseña incorrectos.
+      </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'users:login' %}" autocomplete="off">
+        {% csrf_token %}
+        
+        <!-- Floating Username -->
+        <div class="floating-field">
+          <i class="bi bi-person input-icon"></i>
+          {{ form.username }}
+          <label for="username">Nombre de usuario</label>
+        </div>
+
+        <!-- Floating Password -->
+        <div class="floating-field">
+          <i class="bi bi-lock input-icon"></i>
+          {{ form.password }}
+          <label for="password">Contraseña</label>
+          <button type="button" class="toggle-pass" onclick="togglePassword()">
+            <i class="bi bi-eye" id="eyeIcon"></i>
+          </button>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="form-check">
+            {{ form.remember_me }}
+            <label class="form-check-label" for="{{ form.remember_me.id_for_label }}">Recordarme</label>
+          </div>
+          <a href="#" class="forgot">¿Olvidaste tu contraseña?</a>
+        </div>
+        
+        <button type="submit" class="btn-login mb-3">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
+        </button>
+      </form>
+      
+    </div>
+  </div>
+
+  <script>
+    function togglePassword(){
+      const inp=document.getElementById('password');
+      const icon=document.getElementById('eyeIcon');
+      if(inp.type==='password'){
+        inp.type='text';
+        icon.classList.replace('bi-eye','bi-eye-slash');
+      }else{
+        inp.type='password';
+        icon.classList.replace('bi-eye-slash','bi-eye');
+      }
+    }
+  </script>
+</body>
+</html>
