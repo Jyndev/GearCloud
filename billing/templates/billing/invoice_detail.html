@@ -1,0 +1,241 @@
+{% extends 'dashboard/base.html' %}
+{% load humanize %}
+
+{% block title %}Factura {{ factura.consecutivo }}{% endblock %}
+{% block page_title %}Comprobante de Venta{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invoice-container {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        padding: 3rem;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border);
+    }
+    .invoice-header {
+        border-bottom: 2px solid #f8f9fa;
+        margin-bottom: 2.5rem;
+        padding-bottom: 2rem;
+    }
+    .brand-logo {
+        background: var(--gradient-purple);
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+    .invoice-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: #8B8FA8;
+        margin-bottom: 0.25rem;
+    }
+    .invoice-value {
+        font-weight: 700;
+        color: #2D3250;
+    }
+    .item-table thead {
+        background: #fcfcfd;
+    }
+    .item-table th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8B8FA8;
+        border-top: none;
+        padding: 1rem;
+    }
+    .item-table td {
+        padding: 1.25rem 1rem;
+        vertical-align: middle;
+    }
+    .total-section {
+        background: #fcfcfd;
+        border-radius: 16px;
+        padding: 2rem;
+    }
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+    .total-row.grand-total {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e5f1;
+    }
+    .watermark-paid {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-30deg);
+        font-size: 8rem;
+        font-weight: 900;
+        color: rgba(46, 204, 139, 0.1);
+        text-transform: uppercase;
+        pointer-events: none;
+        z-index: 0;
+        white-space: nowrap;
+    }
+    @media print {
+        .no-print { display: none !important; }
+        .invoice-container { box-shadow: none; border: none; padding: 0; }
+        body { background: white !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-9">
+        
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+            <a href="{% url 'billing:billing_list' %}" class="btn btn-light rounded-pill px-4">
+                <i class="bi bi-arrow-left me-2"></i>Volver al Listado
+            </a>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-light rounded-pill px-4">
+                    <i class="bi bi-printer me-2"></i>Imprimir
+                </button>
+                {% if factura.estado == 'PENDIENTE' %}
+                <form action="{% url 'billing:register_payment' factura.pk %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-cash-coin me-2"></i>Registrar Cobro
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="invoice-container position-relative">
+            {% if factura.estado == 'PAGADA' %}
+            <div class="watermark-paid">PAGADA</div>
+            {% endif %}
+
+            <!-- Header -->
+            <div class="invoice-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="brand-logo">G</div>
+                        <h4 class="fw-black text-dark mb-1">GEARCLOUD</h4>
+                        <p class="text-muted small mb-0">Software de Gestión para Talleres<br>NIT: 900.123.456-7<br>Calle 123 #45-67, Medellín</p>
+                    </div>
+                    <div class="col-md-6 text-md-end mt-4 mt-md-0">
+                        <h2 class="fw-black text-primary mb-1">FACTURA</h2>
+                        <h4 class="fw-bold text-dark">{{ factura.consecutivo }}</h4>
+                        <div class="mt-3">
+                            <span class="badge rounded-pill px-4 py-2 fw-bold
+                                {% if factura.estado == 'PENDIENTE' %}badge-soft-pendiente
+                                {% elif factura.estado == 'PAGADA' %}badge-soft-completado
+                                {% else %}bg-light text-muted{% endif %}">
+                                {{ factura.get_estado_display|upper }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client & Date Info -->
+            <div class="row mb-5">
+                <div class="col-md-6">
+                    <div class="invoice-label">Facturar a:</div>
+                    <h5 class="fw-bold text-dark mb-1">{{ factura.cliente.nombre|default:factura.cliente_nombre|default:"Consumidor Final" }}</h5>
+                    <p class="text-muted small mb-0">
+                        {% if factura.cliente %}
+                        NIT/CC: {{ factura.cliente.cedula }}<br>
+                        Tel: {{ factura.cliente.telefono }}<br>
+                        {{ factura.cliente.direccion|default:"" }}
+                        {% else %}
+                        Venta Directa
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="invoice-label">Fecha Emisión</div>
+                            <div class="invoice-value">{{ factura.fecha|date:"d/m/Y" }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="invoice-label">Hora</div>
+                            <div class="invoice-value">{{ factura.fecha|date:"H:i" }}</div>
+                        </div>
+                    </div>
+                    {% if factura.orden_mantenimiento %}
+                    <div class="mt-4">
+                        <div class="invoice-label">Orden Relacionada</div>
+                        <div class="invoice-value text-primary">#{{ factura.orden_mantenimiento.codigo_ot }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="table-responsive mb-5">
+                <table class="table item-table">
+                    <thead>
+                        <tr>
+                            <th>Descripción del Ítem</th>
+                            <th class="text-center">Cant.</th>
+                            <th class="text-end">Precio Unitario</th>
+                            <th class="text-end">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in factura.items.all %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-dark">{{ item.producto.nombre }}</div>
+                                <div class="text-muted extra-small">REF: {{ item.producto.referencia }}</div>
+                            </td>
+                            <td class="text-center fw-bold">{{ item.cantidad }}</td>
+                            <td class="text-end text-muted">${{ item.precio_unitario|intcomma }}</td>
+                            <td class="text-end fw-bold text-dark">${{ item.subtotal|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div class="row justify-content-end">
+                <div class="col-md-5">
+                    <div class="total-section">
+                        <div class="total-row">
+                            <span class="text-muted">Subtotal</span>
+                            <span class="fw-bold text-dark">${{ factura.subtotal|intcomma }}</span>
+                        </div>
+                        <div class="total-row">
+                            <span class="text-muted">IVA (0%)</span>
+                            <span class="fw-bold text-dark">$0</span>
+                        </div>
+                        <div class="total-row grand-total">
+                            <span class="h5 fw-black text-dark mb-0">TOTAL</span>
+                            <span class="h5 fw-black text-primary mb-0">${{ factura.total|intcomma }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Note -->
+            <div class="mt-5 pt-5 border-top text-center">
+                <p class="text-muted small mb-0">¡Gracias por confiar en GearCloud para el cuidado de tu vehículo!</p>
+                <div class="extra-small text-muted mt-1">Este documento es un comprobante de venta válido generado electrónicamente.</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

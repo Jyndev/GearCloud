@@ -1,0 +1,307 @@
+{% extends 'dashboard/base.html' %}
+{% load static l10n %}
+
+{% block title %}Venta Rápida{% endblock %}
+{% block page_title %}Nueva Venta de Repuestos{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Catálogo de Repuestos -->
+    <div class="col-12 col-lg-8">
+        <div class="module-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="mb-0">Suministros y Repuestos</h3>
+                <div class="topbar-search" style="width: 300px;">
+                    <input type="text" id="productSearch" placeholder="Buscar por nombre o SKU...">
+                    <i class="bi bi-search"></i>
+                </div>
+            </div>
+            
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" id="productList">
+                {% for producto in productos %}
+                <div class="col product-item" data-name="{{ producto.nombre|lower }}" data-ref="{{ producto.referencia|lower }}">
+                    <div class="product-card h-100 flex-column" 
+                         onclick="addToCart('{{ producto.id }}', '{{ producto.nombre }}', '{{ producto.precio|unlocalize }}', '{{ producto.stock_actual }}')">
+                        <div class="d-flex w-100 justify-content-between align-items-start mb-3">
+                            <div class="product-icon">
+                                <i class="bi bi-box-seam"></i>
+                            </div>
+                            <span class="stock-badge {% if producto.stock_bajo %}stock-low{% else %}stock-ok{% endif %}">
+                                {{ producto.stock_actual }}
+                            </span>
+                        </div>
+                        <div class="product-info">
+                            <h4 class="product-name">{{ producto.nombre }}</h4>
+                            <p class="product-ref">{{ producto.referencia }}</p>
+                        </div>
+                        <div class="product-footer mt-auto pt-3 d-flex justify-content-between align-items-center">
+                            <span class="product-price">$ {{ producto.precio|floatformat:0 }}</span>
+                            <div class="add-btn"><i class="bi bi-plus"></i></div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-5">
+                    <p class="text-muted">No hay repuestos disponibles en inventario.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Carrito / Factura -->
+    <div class="col-12 col-lg-4">
+        <form id="invoiceForm" method="POST">
+            {% csrf_token %}
+            <div class="module-card sticky-top" style="top: 20px;">
+                <h3 class="mb-4">Resumen de Venta</h3>
+                
+                <!-- Nombre del Cliente -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-muted">COMPRADOR</label>
+                    <div class="topbar-search w-100" style="padding: 10px 18px;">
+                        <input type="text" name="cliente_nombre" id="clienteNombre" placeholder="Nombre completo del comprador..." required style="width: 100%;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                </div>
+
+                <hr class="my-4 opacity-50">
+
+                <!-- Items del Carrito -->
+                <div id="emptyCart">
+                    <div class="text-center py-4 text-muted small">
+                        <i class="bi bi-cart3 fs-2 d-block mb-2"></i>
+                        El carrito está vacío
+                    </div>
+                </div>
+                
+                <div class="cart-items mb-4" id="cartItems" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Los items se renderizan aquí -->
+                </div>
+
+                <input type="hidden" name="items_json" id="itemsJson">
+
+                <div class="bg-light p-3 rounded-4 mb-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Subtotal</span>
+                        <span class="fw-semibold" id="subtotalDisplay">$0</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-bold">TOTAL</span>
+                        <span class="fw-bold fs-5 text-purple" id="totalDisplay">$0</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-gc w-100 py-3" id="btnConfirm" disabled>
+                    <i class="bi bi-check2-circle me-2"></i>Confirmar Venta
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let cart = [];
+
+    const currencyFormatter = new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+
+    function addToCart(id, name, price, stock) {
+        // Al usar |unlocalize en el template, recibimos el número en formato puro (ej: 25000.00)
+        price = parseFloat(price);
+        stock = parseInt(stock);
+        
+        const existingItem = cart.find(item => item.producto_id === id);
+        if (existingItem) {
+            if (existingItem.cantidad < stock) {
+                existingItem.cantidad += 1;
+            } else {
+                alert('Stock insuficiente');
+                return;
+            }
+        } else {
+            cart.push({
+                producto_id: id,
+                nombre: name,
+                precio_unitario: price,
+                cantidad: 1,
+                stock: stock
+            });
+        }
+        renderCart();
+    }
+
+    function removeFromCart(id) {
+        cart = cart.filter(item => item.producto_id !== id);
+        renderCart();
+    }
+
+    function updateQuantity(id, delta) {
+        const item = cart.find(item => item.producto_id === id);
+        if (item) {
+            const newQty = item.cantidad + delta;
+            if (newQty > 0 && newQty <= item.stock) {
+                item.cantidad = newQty;
+            } else if (newQty === 0) {
+                removeFromCart(id);
+            }
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const cartContainer = document.getElementById('cartItems');
+        const emptyCart = document.getElementById('emptyCart');
+        const itemsJsonInput = document.getElementById('itemsJson');
+        const btnConfirm = document.getElementById('btnConfirm');
+        
+        if (cart.length === 0) {
+            cartContainer.innerHTML = '';
+            emptyCart.classList.remove('d-none');
+            btnConfirm.disabled = true;
+        } else {
+            emptyCart.classList.add('d-none');
+            btnConfirm.disabled = false;
+            cartContainer.innerHTML = cart.map(item => `
+                <div class="cart-item-row d-flex justify-content-between align-items-center p-2 mb-2 rounded-3 bg-white border border-light">
+                    <div style="flex: 1;">
+                        <div class="fw-semibold small">${item.nombre}</div>
+                        <div class="text-muted" style="font-size: 11px;">${currencyFormatter.format(item.precio_unitario)} x ${item.cantidad}</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-light border-0" onclick="updateQuantity('${item.producto_id}', -1)">-</button>
+                            <span class="px-2 small fw-bold">${item.cantidad}</span>
+                            <button type="button" class="btn btn-light border-0" onclick="updateQuantity('${item.producto_id}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn text-danger p-1" onclick="removeFromCart('${item.producto_id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        const total = cart.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
+        document.getElementById('subtotalDisplay').innerText = currencyFormatter.format(total);
+        document.getElementById('totalDisplay').innerText = currencyFormatter.format(total);
+        itemsJsonInput.value = JSON.stringify(cart.map(item => ({
+            producto_id: item.producto_id,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio_unitario
+        })));
+    }
+
+    // Buscador de productos
+    document.getElementById('productSearch').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        const products = document.querySelectorAll('.product-item');
+        products.forEach(p => {
+            const name = p.getAttribute('data-name');
+            const ref = p.getAttribute('data-ref');
+            if (name.includes(term) || ref.includes(term)) {
+                p.style.display = 'block';
+            } else {
+                p.style.display = 'none';
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Tarjetas de Producto Modernas */
+    .product-card {
+        background: #fff;
+        border: 1.5px solid var(--border);
+        border-radius: 20px;
+        padding: 1.25rem;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        position: relative;
+        overflow: hidden;
+    }
+    .product-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(91, 63, 217, 0.08);
+    }
+    .product-card:active { transform: scale(0.97); }
+
+    .product-icon {
+        width: 42px; height: 42px;
+        background: rgba(91, 63, 217, 0.06);
+        color: var(--primary);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    /* Badge de Stock Refinado */
+    .stock-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .stock-ok { background: rgba(46, 204, 139, 0.1); color: var(--success); border: 1px solid rgba(46, 204, 139, 0.2); }
+    .stock-low { background: rgba(245, 166, 35, 0.1); color: var(--warning); border: 1px solid rgba(245, 166, 35, 0.2); }
+
+    .product-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--foreground);
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .product-ref {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin: 4px 0 0;
+    }
+
+    .product-price {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .add-btn {
+        width: 32px; height: 32px;
+        background: var(--primary);
+        color: #fff;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+        transition: transform 0.2s;
+    }
+    .product-card:hover .add-btn { transform: rotate(90deg); }
+
+    /* Otros estilos del carrito */
+    .cart-item-row { transition: all 0.2s; border: 1px solid transparent; }
+    .cart-item-row:hover { border-color: var(--primary-light); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .sticky-top { z-index: 10; }
+    .form-select-gc {
+        border-radius: 12px;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        font-size: 14px;
+        background-color: #fff;
+    }
+    .form-select-gc:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(91, 63, 217, 0.1);
+    }
+</style>
+{% endblock %}

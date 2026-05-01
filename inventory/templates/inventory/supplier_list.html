@@ -1,0 +1,161 @@
+{% extends 'dashboard/base.html' %}
+{% load static humanize %}
+
+{% block title %}Proveedores{% endblock %}
+{% block page_title %}Directorio de Proveedores{% endblock %}
+
+{% block content %}
+<!-- Stat Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="stat-card bg-purple">
+      <div class="stat-icon"><i class="bi bi-truck"></i></div>
+      <div>
+          <div class="stat-label">Total Proveedores</div>
+          <div class="stat-value">{{ total_proveedores }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="stat-card bg-teal">
+      <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+      <div>
+          <div class="stat-label">Total Repuestos Suministrados</div>
+          <div class="stat-value">{{ total_items }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="stat-card bg-green">
+      <div class="stat-icon"><i class="bi bi-currency-dollar"></i></div>
+      <div>
+          <div class="stat-label">Valoración de Suministros</div>
+          <div class="stat-value">${{ total_valor|floatformat:0|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Suppliers Table -->
+<div class="module-card">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
+    <h3 class="mb-0">Listado de Proveedores</h3>
+    <div class="d-flex gap-3">
+      <div class="d-flex align-items-center gap-2 rounded-pill border px-3 py-2" style="background:var(--bg)">
+        <i class="bi bi-search text-muted"></i>
+        <input type="text" class="border-0 bg-transparent shadow-none" placeholder="Buscar proveedor..." style="outline:none;font-family:'Poppins';font-size:13px;width:160px">
+      </div>
+      <button type="button" class="btn-gc" data-bs-toggle="modal" data-bs-target="#supplierModal">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Proveedor
+      </button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table-gc">
+      <thead>
+        <tr>
+            <th>Razón Social / Nombre</th>
+            <th>NIT / Identificación</th>
+            <th>Contacto</th>
+            <th>Teléfono</th>
+            <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for proveedor in proveedores %}
+        <tr>
+          <td class="fw-medium">{{ proveedor.nombre }}</td>
+          <td class="text-muted">{{ proveedor.nit }}</td>
+          <td>{{ proveedor.contacto|default:"N/A" }}</td>
+          <td>{{ proveedor.telefono|default:"N/A" }}</td>
+          <td class="text-end">
+            <a href="{% url 'inventory:supplier_detail' proveedor.pk %}" class="btn btn-sm btn-outline-primary border-0 rounded-circle" title="Ver Detalles">
+                <i class="bi bi-eye-fill"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">No hay proveedores registrados.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Supplier Registration Modal -->
+<div class="modal fade" id="supplierModal" tabindex="-1" aria-labelledby="supplierModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <h3 class="modal-title fs-4 fw-bold mb-0" id="supplierModalLabel" style="color: var(--text-dark)">Registrar Proveedor</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" autocomplete="off">
+        <div class="modal-body px-4 py-4">
+          {% csrf_token %}
+          
+          <div class="row">
+            <div class="col-12">
+              <div class="floating-field">
+                <i class="bi bi-card-text input-icon"></i>
+                {{ form.nit }}
+                <label for="{{ form.nit.id_for_label }}">NIT / Identificación</label>
+                {% if form.nit.errors %}
+                  <div class="text-danger small mt-1" style="font-size: 11px;">{{ form.nit.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="floating-field">
+                <i class="bi bi-building input-icon"></i>
+                {{ form.nombre }}
+                <label for="{{ form.nombre.id_for_label }}">Razón Social / Nombre</label>
+                {% if form.nombre.errors %}
+                  <div class="text-danger small mt-1" style="font-size: 11px;">{{ form.nombre.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="floating-field">
+                <i class="bi bi-person input-icon"></i>
+                {{ form.contacto }}
+                <label for="{{ form.contacto.id_for_label }}">Persona de Contacto</label>
+                {% if form.contacto.errors %}
+                  <div class="text-danger small mt-1" style="font-size: 11px;">{{ form.contacto.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="floating-field">
+                <i class="bi bi-telephone input-icon"></i>
+                {{ form.telefono }}
+                <label for="{{ form.telefono.id_for_label }}">Teléfono</label>
+                {% if form.telefono.errors %}
+                  <div class="text-danger small mt-1" style="font-size: 11px;">{{ form.telefono.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
+          <button type="button" class="btn-gc-outline border-0 bg-light text-muted" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn-gc px-4"><i class="bi bi-floppy-fill me-2"></i>Guardar Proveedor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    {% if form.errors %}
+      var myModal = new bootstrap.Modal(document.getElementById('supplierModal'));
+      myModal.show();
+    {% endif %}
+  });
+</script>
+{% endblock %}

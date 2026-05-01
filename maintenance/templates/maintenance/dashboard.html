@@ -1,0 +1,245 @@
+{% extends 'dashboard/base.html' %}
+{% load humanize %}
+
+{% block title %}Mantenimientos{% endblock %}
+{% block page_title %}Taller — Gestión de Órdenes{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kanban-col {
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 16px;
+        padding: 1.25rem;
+        min-height: 70vh;
+        border-top: 5px solid transparent;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+    .border-pend { border-top-color: #6c757d; }
+    .border-rev { border-top-color: var(--amber); }
+    .border-rep { border-top-color: var(--primary); }
+    .border-comp { border-top-color: var(--teal); }
+
+    .kanban-item {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid var(--border);
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+    .kanban-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--primary-light);
+    }
+    .kanban-item .ot-code {
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .kanban-item .moto-info {
+        font-weight: 600;
+        margin-top: 4px;
+        font-size: 0.9rem;
+    }
+    .kanban-item .issue {
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="fw-bold mb-0">Tablero de Control</h5>
+    <button type="button" class="btn-gc" data-bs-toggle="modal" data-bs-target="#modalCreateOrder">
+        <i class="bi bi-plus-circle me-2"></i>Nueva Orden
+    </button>
+</div>
+
+<div class="row g-4 h-100">
+    <!-- COLUMNA: PENDIENTE -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="kanban-col border-pend">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">Recepción / Pendiente</h6>
+                <span class="badge rounded-pill bg-light text-muted fw-bold">{{ pendientes.count }}</span>
+            </div>
+            {% for orden in pendientes %}
+            <a href="{% url 'maintenance:order_detail' orden.pk %}" class="kanban-item">
+                <div class="d-flex justify-content-between">
+                    <span class="ot-code">{{ orden.codigo_ot }}</span>
+                    <i class="bi bi-clock-history text-muted"></i>
+                </div>
+                <div class="moto-info">{{ orden.moto.placa }} — {{ orden.moto.marca }}</div>
+                <div class="issue">{{ orden.falla_reportada }}</div>
+                <div class="d-flex justify-content-between mt-3 text-muted small">
+                    <span><i class="bi bi-person me-1"></i>{{ orden.recepcionista.username }}</span>
+                    <span>{{ orden.created_at|naturaltime }}</span>
+                </div>
+            </a>
+            {% empty %}
+            <p class="text-center text-muted small mt-4">No hay órdenes pendientes</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- COLUMNA: REVISION -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="kanban-col border-rev">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">Diagnóstico / Revisión</h6>
+                <span class="badge rounded-pill bg-light text-muted fw-bold">{{ revision.count }}</span>
+            </div>
+            {% for orden in revision %}
+            <a href="{% url 'maintenance:order_detail' orden.pk %}" class="kanban-item">
+                <div class="d-flex justify-content-between">
+                    <span class="ot-code">{{ orden.codigo_ot }}</span>
+                    <i class="bi bi-search text-warning"></i>
+                </div>
+                <div class="moto-info">{{ orden.moto.placa }} — {{ orden.moto.modelo }}</div>
+                <div class="issue">{{ orden.falla_reportada }}</div>
+                <div class="d-flex justify-content-between mt-3 text-muted small">
+                    <span><i class="bi bi-wrench me-1"></i>{{ orden.mecanico.first_name|add:" "|add:orden.mecanico.last_name|default:"Sin asignar" }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- COLUMNA: REPARACION -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="kanban-col border-rep">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">En Reparación</h6>
+                <span class="badge rounded-pill bg-light text-muted fw-bold">{{ reparacion.count }}</span>
+            </div>
+            {% for orden in reparacion %}
+            <a href="{% url 'maintenance:order_detail' orden.pk %}" class="kanban-item">
+                <div class="d-flex justify-content-between">
+                    <span class="ot-code">{{ orden.codigo_ot }}</span>
+                    <i class="bi bi-gear-wide-connected text-primary spin"></i>
+                </div>
+                <div class="moto-info">{{ orden.moto.placa|upper }}</div>
+                <div class="issue">{{ orden.diagnostico_tecnico|truncatechars:50 }}</div>
+                <div class="d-flex justify-content-between mt-3 text-muted small">
+                    <span><i class="bi bi-wrench me-1"></i>{{ orden.mecanico.first_name }} {{ orden.mecanico.last_name }}</span>
+                    <span class="fw-bold text-dark">${{ orden.total_general|intcomma }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- COLUMNA: COMPLETADO -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="kanban-col border-comp">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">Listo para Entrega</h6>
+                <span class="badge rounded-pill bg-light text-muted fw-bold">{{ completadas.count }}</span>
+            </div>
+            {% for orden in completadas %}
+            <a href="{% url 'maintenance:order_detail' orden.pk %}" class="kanban-item">
+                <div class="d-flex justify-content-between">
+                    <span class="ot-code">{{ orden.codigo_ot }}</span>
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                </div>
+                <div class="moto-info">{{ orden.moto.placa|upper }}</div>
+                <div class="text-success small fw-bold">Por cobrar: ${{ orden.total_general|intcomma }}</div>
+                <div class="d-flex justify-content-between mt-3 text-muted small">
+                    <span>Finalizado {{ orden.updated_at|naturaltime }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CREAR ORDEN -->
+<div class="modal fade {% if form_creacion.errors %}show{% endif %}" id="modalCreateOrder" tabindex="-1" {% if form_creacion.errors %}style="display: block;"{% endif %} aria-labelledby="modalCreateOrderLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-purple text-white p-4" style="border-radius: 20px 20px 0 0;">
+                <h5 class="modal-title fw-bold" id="modalCreateOrderLabel">
+                    <i class="bi bi-clipboard-plus me-2"></i>Nueva Orden de Servicio
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'maintenance:dashboard' %}" method="post" enctype="multipart/form-data" autocomplete="off">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    {% if form_creacion.errors %}
+                    <div class="alert alert-danger py-2 mb-3">
+                        <ul class="mb-0 small">
+                            {% for field, errors in form_creacion.errors.items %}
+                                {% for error in errors %}<li>{{ field }}: {{ error }}</li>{% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="form-floating">
+                                {{ form_creacion.moto }}
+                                <label>Seleccionar Motocicleta (Placa)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                {{ form_creacion.kilometraje }}
+                                <label>Kilometraje Actual</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                {{ form_creacion.gasolina }}
+                                <label>Nivel de Gasolina</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-floating">
+                                {{ form_creacion.falla_reportada }}
+                                <label>Motivo del Ingreso / Fallas</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-floating">
+                                {{ form_creacion.observaciones_recepcion }}
+                                <label>Observaciones de Recepción</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small text-muted text-uppercase mb-1">Subir Fotografías del Vehículo (Opcional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-camera"></i></span>
+                                {{ form_creacion.fotos }}
+                            </div>
+                            <div class="form-text">Puedes seleccionar varias imágenes a la vez.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn-gc px-4">
+                        <i class="bi bi-save me-2"></i>Crear Orden
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if form_creacion.errors %}
+<div class="modal-backdrop fade show"></div>
+{% endif %}
+{% endblock %}

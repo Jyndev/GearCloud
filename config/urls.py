@@ -16,11 +16,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('dashboard.urls')),
     path('users/', include('users.urls')),
-    path('dashboard/', include('dashboard.urls')),
     path('customers/', include('customers.urls')),
+    path('inventory/', include('inventory.urls')),
+    path('billing/', include('billing.urls')),
+    path('maintenance/', include('maintenance.urls')),
 ]
+
+if settings.DEBUG:
+    from django.conf.urls.static import static
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

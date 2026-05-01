@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -110,8 +111,9 @@
 
   <div class="login-left">
     <div class="brand">
-      <div class="brand-icon"><i class="bi bi-gear-fill"></i></div>
-      <span>GearCloud</span>
+      <div class="brand-icon" style="background: rgba(255,255,255,0.95); width: auto; padding: 12px 30px; border-radius: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+          <img src="{% static 'logos/complete.png' %}" alt="GearCloud" style="height: 60px; object-fit: contain;">
+      </div>
     </div>
     <h1>Gestión inteligente<br>sobre dos ruedas</h1>
     <p>Administra tu taller de motocicletas con la plataforma más completa: recepción, diagnóstico, inventario y facturación en un solo lugar.</p>

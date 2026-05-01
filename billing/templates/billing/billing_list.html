@@ -1,0 +1,166 @@
+{% extends 'dashboard/base.html' %}
+{% load static humanize %}
+
+{% block title %}Facturación{% endblock %}
+{% block page_title %}Caja y Facturación{% endblock %}
+
+{% block content %}
+<!-- Stat Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-sm-6">
+    <div class="stat-card bg-purple">
+      <div class="stat-icon"><i class="bi bi-currency-dollar"></i></div>
+      <div>
+          <div class="stat-label">Total Histórico Facturado</div>
+          <div class="stat-value">${{ total_facturado|floatformat:2 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6">
+    <div class="stat-card bg-teal">
+      <div class="stat-icon"><i class="bi bi-file-text"></i></div>
+      <div>
+          <div class="stat-label">Facturas Emitidas</div>
+          <div class="stat-value">{{ facturas_mes }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invoices Table -->
+<div class="module-card mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Historial de Facturas</h3>
+    <a href="{% url 'billing:invoice_create' %}" class="btn-gc"><i class="bi bi-receipt me-2"></i>Nueva Factura</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table-gc">
+      <thead>
+        <tr>
+            <th>Factura</th>
+            <th>Cédula/NIT</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for factura in facturas %}
+        <tr>
+          <td class="fw-semibold">{{ factura.consecutivo }}</td>
+          <td class="text-muted">{{ factura.cliente.cedula|default:"--" }}</td>
+          <td class="text-muted">{{ factura.cliente.nombre|default:factura.cliente_nombre|default:"Consumidor Final" }}</td>
+          <td class="fw-medium">${{ factura.total|floatformat:2 }}</td>
+          <td class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ factura.fecha|date:"d/m/Y H:i" }}</td>
+          <td>
+            {% if factura.estado == 'PAGADA' %}
+                <span class="badge-status badge-success">Pagada</span>
+            {% elif factura.estado == 'PENDIENTE' %}
+                <span class="badge-status badge-warning">Pendiente</span>
+            {% else %}
+                <span class="badge-status badge-danger">Anulada</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <a href="{% url 'billing:invoice_detail' factura.pk %}" class="btn-table-action text-primary" title="Ver detalle">
+                <i class="bi bi-eye-fill"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" class="text-center text-muted">No existen facturas registradas.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Monthly Chart -->
+  <div class="col-12 col-xl-8">
+    <div class="module-card h-100">
+      <h3>Ingresos Mensuales</h3>
+      <canvas id="revenueChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Commissions -->
+  <div class="col-12 col-xl-4">
+    <div class="module-card h-100">
+      <h3>Liquidación Comisiones</h3>
+      {% for mecanico in mecanicos %}
+      <div class="commission-item mb-3 pb-3 border-bottom">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">{{ mecanico.get_full_name|default:mecanico.username }}</span>
+          <span class="fw-bold text-success">$ {{ mecanico.total_comision|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <span class="text-muted small">{{ mecanico.count_ordenes }} órdenes completadas</span>
+          <span class="text-muted small">Labor: $ {{ mecanico.total_labor|floatformat:0|intcomma }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted" style="font-size:10px; font-weight:600; text-transform:uppercase;">
+                Comisión: {{ mecanico.comision_porcentaje|floatformat:0 }}%
+            </div>
+            <a href="{% url 'billing:settle_commissions' mecanico.id %}" class="btn btn-sm btn-outline-success border-0 py-0" style="font-size: 11px;" onclick="return confirm('¿Estás seguro de liquidar y reiniciar las comisiones para este mecánico?')">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Liquidar y Reiniciar
+            </a>
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-muted small">No hay mecánicos registrados.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  const labels = {{ chart_labels|safe }};
+  const dataValues = {{ chart_values|safe }};
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Ingresos',
+        data: dataValues,
+        backgroundColor: '#5B3FD9',
+        borderRadius: 8, barThickness: 36
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff', titleColor: '#2D3250', bodyColor: '#2D3250',
+          borderColor: '#E2E5F1', borderWidth: 1, cornerRadius: 12, padding: 12,
+          callbacks: { label: ctx => '$' + ctx.parsed.y.toLocaleString() }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8B8FA8', font: { size: 12 } } },
+        y: { 
+            grid: { color: '#E2E5F1' }, 
+            ticks: { 
+                color: '#8B8FA8', 
+                font: { size: 11 }, 
+                callback: v => '$' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'K') 
+            } 
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

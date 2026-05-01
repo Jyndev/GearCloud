@@ -18,6 +18,14 @@ class User(AbstractUser):
         default=ROLE_RECEPCION,
         verbose_name="Rol en el sistema"
     )
+    
+    comision_porcentaje = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=50.00,
+        verbose_name="Porcentaje de Comisión (%)",
+        help_text="Porcentaje de la mano de obra que recibe el mecánico"
+    )
 
     def is_admin(self):
         return self.role == self.ROLE_ADMIN

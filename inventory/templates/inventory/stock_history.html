@@ -1,0 +1,87 @@
+{% extends 'dashboard/base.html' %}
+{% load humanize %}
+
+{% block title %}Historial de Inventario{% endblock %}
+{% block page_title %}Trazabilidad de Stock{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">
+            {% if producto %}
+                Historial: <span class="text-purple">{{ producto.nombre }}</span>
+            {% else %}
+                Historial de Movimientos General
+            {% endif %}
+        </h2>
+        <p class="text-muted small">
+            {% if producto %}
+                Registro detallado de entradas y salidas para este producto.
+            {% else %}
+                Registro detallado de todas las actividades de stock en la tienda.
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% url 'inventory:inventory_list' %}" class="btn-gc-outline">
+        <i class="bi bi-arrow-left me-2"></i>Volver al Inventario
+    </a>
+</div>
+
+<div class="module-card">
+    <div class="table-responsive">
+        <table class="table-gc">
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Producto</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Precios (Instante)</th>
+                    <th>Responsable</th>
+                    <th>Notas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mov in movimientos %}
+                <tr>
+                    <td class="small text-muted">{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="fw-bold text-dark">{{ mov.producto.nombre }}</td>
+                    <td>
+                        {% if mov.tipo == 'ENTRADA' %}
+                            <span class="badge-status badge-success"><i class="bi bi-arrow-down-left me-1"></i>Entrada</span>
+                        {% elif mov.tipo == 'SALIDA' %}
+                            <span class="badge-status badge-danger"><i class="bi bi-arrow-up-right me-1"></i>Salida</span>
+                        {% else %}
+                            <span class="badge-status badge-warning"><i class="bi bi-gear me-1"></i>Ajuste</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold {% if mov.tipo == 'ENTRADA' %}text-success{% else %}text-danger{% endif %}">
+                        {% if mov.tipo == 'ENTRADA' %}+{% else %}-{% endif %}{{ mov.cantidad }}
+                    </td>
+                    <td>
+                        <div class="small text-muted" style="font-size: 11px;">C: ${{ mov.precio_compra_instante|floatformat:0|intcomma }}</div>
+                        <div class="small text-purple" style="font-size: 11px;">V: ${{ mov.precio_venta_instante|floatformat:0|intcomma }}</div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 10px;">
+                                {{ mov.user.username|slice:":1"|upper }}
+                            </div>
+                            <span class="small">{{ mov.user.get_full_name|default:mov.user.username }}</span>
+                        </div>
+                    </td>
+                    <td class="small text-muted">{{ mov.notas|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-info-circle fs-2 d-block mb-2"></i>
+                        Aún no hay registros de movimientos en el inventario.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

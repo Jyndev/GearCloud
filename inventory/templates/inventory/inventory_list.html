@@ -1,0 +1,459 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Inventario{% endblock %}
+{% block page_title %}GearInventory{% endblock %}
+
+{% block content %}
+<!-- Stat Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+      <div class="stat-icon"><i class="bi bi-graph-up"></i></div>
+      <div>
+          <div class="stat-label">Ventas Realizadas</div>
+          <div class="stat-value">${{ total_vendas|floatformat:0|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);">
+      <div class="stat-icon"><i class="bi bi-cart-check"></i></div>
+      <div>
+          <div class="stat-label">Costo de Ventas</div>
+          <div class="stat-value">${{ costo_vendas|floatformat:0|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card {% if margen >= 0 %}bg-green{% else %}bg-danger{% endif %}">
+      <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+      <div>
+          <div class="stat-label">Utilidad Bruta</div>
+          <div class="stat-value">${{ margen|floatformat:0|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+      <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <div>
+          <div class="stat-label">Stock Crítico</div>
+          <div class="stat-value">{{ stock_bajo_count|default:0 }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Products Table -->
+<div class="module-card">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
+    <h3 class="mb-0">Catálogo de Repuestos</h3>
+    <div class="d-flex gap-3">
+      <div class="d-flex align-items-center gap-2 rounded-pill border px-3 py-2" style="background:var(--bg)">
+        <i class="bi bi-search text-muted"></i>
+        <input type="text" id="searchInput" class="border-0 bg-transparent shadow-none" placeholder="Buscar producto..." style="outline:none;font-family:'Poppins';font-size:13px;width:140px">
+      </div>
+      <div class="d-flex align-items-center gap-2 rounded-pill border px-3 py-2" style="background:var(--bg)">
+        <i class="bi bi-filter text-muted"></i>
+        <select id="categoryFilter" class="border-0 bg-transparent shadow-none" style="outline:none;font-family:'Poppins';font-size:13px;color:var(--text-muted);cursor:pointer">
+          <option value="">Todas las categorías</option>
+          {% for cat in categorias %}
+            <option value="{{ cat.nombre }}">{{ cat.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="button" class="btn-gc-outline" data-bs-toggle="modal" data-bs-target="#categoryModal">
+        <i class="bi bi-tags me-1"></i>Nueva Categoría
+      </button>
+      <a href="{% url 'inventory:stock_history' %}" class="btn-gc-outline">
+        <i class="bi bi-clock-history me-1"></i>Historial
+      </a>
+      <button type="button" class="btn-gc" data-bs-toggle="modal" data-bs-target="#productModal">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
+      </button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table-gc">
+      <thead>
+        <tr>
+            <th>Referencia</th>
+            <th>Nombre</th>
+            <th>Categoría</th>
+            <th>Proveedor</th>
+            <th>Stock</th>
+            <th>Costo / Venta</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for producto in productos %}
+        <tr>
+          <td class="fw-medium text-purple">{{ producto.referencia }}</td>
+          <td>{{ producto.nombre }}</td>
+          <td><span class="badge rounded-pill bg-light text-muted border px-2 py-1" style="font-size:11px">{{ producto.categoria.nombre }}</span></td>
+          <td class="text-muted">{{ producto.proveedor.nombre|default:"N/A" }}</td>
+          <td class="fw-semibold">{{ producto.stock_actual }}</td>
+          <td>
+            <div class="small text-muted" style="font-size:11px">C: ${{ producto.precio_compra|floatformat:0|intcomma }}</div>
+            <div class="fw-medium text-purple">V: ${{ producto.precio|floatformat:0|intcomma }}</div>
+          </td>
+          <td>
+            {% if producto.stock_actual == 0 %}
+                <span class="badge-status badge-danger">Agotado</span>
+            {% elif producto.stock_bajo %}
+                <span class="badge-status badge-warning">Stock Bajo</span>
+            {% else %}
+                <span class="badge-status badge-success">En Stock</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1">
+                <button class="btn btn-sm btn-purple-light rounded-pill px-2" title="Entrada de Stock" data-bs-toggle="modal" data-bs-target="#entryModal{{ producto.pk }}">
+                    <i class="bi bi-download me-1"></i>Entrada
+                </button>
+                <a href="{% url 'inventory:product_history' producto.pk %}" class="btn btn-sm btn-table-action text-info" title="Ver Historial Individual">
+                    <i class="bi bi-clock-history"></i>
+                </a>
+                <button class="btn btn-sm btn-table-action text-primary" title="Editar" data-bs-toggle="modal" data-bs-target="#editProductModal{{ producto.pk }}">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+            </div>
+
+            <!-- Modal Editar Producto -->
+            <div class="modal fade" id="editProductModal{{ producto.pk }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                  <div class="modal-content border-0 text-start shadow-lg" style="border-radius: 1.25rem;">
+                    <div class="modal-header border-0 pb-0 pt-4 px-4">
+                      <h4 class="modal-title fw-bold">Editar {{ producto.nombre }}</h4>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{% url 'inventory:product_update' producto.pk %}" method="post">
+                      {% csrf_token %}
+                      <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="floating-field">
+                                    <i class="bi bi-hash input-icon"></i>
+                                    <input type="text" name="referencia" value="{{ producto.referencia }}" class="form-control" required>
+                                    <label>Referencia / SKU</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="floating-field">
+                                    <i class="bi bi-box-seam input-icon"></i>
+                                    <input type="text" name="nombre" value="{{ producto.nombre }}" class="form-control" required>
+                                    <label>Nombre del Producto</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="floating-field">
+                                    <i class="bi bi-tags input-icon"></i>
+                                    <select name="categoria" class="form-select" required>
+                                        {% for cat in category_form.nombre.field.queryset|default:categorias %}
+                                            <option value="{{ cat.pk }}" {% if cat.pk == producto.categoria.pk %}selected{% endif %}>{{ cat.nombre }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label>Categoría</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="floating-field">
+                                    <i class="bi bi-currency-dollar input-icon"></i>
+                                    <input type="number" name="precio" value="{{ producto.precio|stringformat:".2f" }}" step="0.01" class="form-control" required>
+                                    <label>Precio de Venta ($)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="floating-field">
+                                    <i class="bi bi-stack input-icon"></i>
+                                    <input type="number" value="{{ producto.stock_actual }}" class="form-control bg-light" readonly>
+                                    <label>Stock Actual (Solo Lectura)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="floating-field">
+                                    <i class="bi bi-shield-exclamation input-icon"></i>
+                                    <input type="number" name="stock_minimo" value="{{ producto.stock_minimo }}" class="form-control" required>
+                                    <label>Stock Mínimo</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-2 border rounded-3 d-flex align-items-center justify-content-between" style="background: #ffffff; height: 58px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
+                                    <span class="small fw-bold text-muted ps-2">Estado Activo</span>
+                                    <div class="form-check form-switch me-2 mb-0">
+                                        <input class="form-check-input custom-switch" type="checkbox" name="is_active" id="activeSwitch{{ producto.pk }}" {% if producto.is_active %}checked{% endif %} 
+                                               style="width: 2.5em; height: 1.25em; cursor: pointer; background-color: #e2e8f0; border-color: #cbd5e1;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-0 p-4 pt-0">
+                        <button type="submit" class="btn-gc w-100 py-3 rounded-pill fw-bold">
+                            <i class="bi bi-floppy-fill me-2"></i>Guardar Cambios
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+            </div>
+
+            <!-- Modal Entrada Stock para este producto -->
+            <div class="modal fade" id="entryModal{{ producto.pk }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content border-0 text-start shadow-lg" style="border-radius: 1.25rem;">
+                    <div class="modal-header border-0 pb-0 pt-4 px-4">
+                      <h4 class="modal-title fw-bold">Entrada de Inventario</h4>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{% url 'inventory:stock_entry' producto.pk %}" method="post">
+                      {% csrf_token %}
+                      <div class="modal-body p-4">
+                        <div class="p-3 bg-light rounded-3 mb-4 border-start border-4 border-primary">
+                            <h5 class="mb-1 fw-bold text-dark">{{ producto.nombre }}</h5>
+                            <span class="text-muted small">Ref: {{ producto.referencia }} | Stock actual: <b>{{ producto.stock_actual }}</b></span>
+                        </div>
+                        
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="floating-field">
+                                    <i class="bi bi-plus-circle-fill input-icon"></i>
+                                    <input type="number" name="cantidad" class="form-control" placeholder=" " required min="1">
+                                    <label>Cantidad a Ingresar</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="floating-field">
+                                    <i class="bi bi-cash-down input-icon"></i>
+                                    <input type="number" name="precio_compra" step="0.01" class="form-control" placeholder=" " value="{{ producto.precio_compra|stringformat:'.2f' }}">
+                                    <label>Precio Compra</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="floating-field">
+                                    <i class="bi bi-cash-up input-icon"></i>
+                                    <input type="number" name="precio_venta" step="0.01" class="form-control" placeholder=" " value="{{ producto.precio|stringformat:'.2f' }}">
+                                    <label>Precio Venta</label>
+                                </div>
+                            </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-0 p-4 pt-0">
+                        <button type="submit" class="btn-gc w-100 py-3 rounded-pill fw-bold shadow-sm">
+                            <i class="bi bi-check-lg me-2"></i>Confirmar Entrada
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="text-center text-muted">No hay productos en el inventario.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Category Registration Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <h3 class="modal-title fs-4 fw-bold mb-0" id="categoryModalLabel" style="color: var(--text-dark)">Nueva Categoría</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'inventory:category_create' %}" method="post" autocomplete="off">
+        <div class="modal-body px-4 py-4">
+          {% csrf_token %}
+          
+          <div class="row">
+            <div class="col-12 text-center mb-4">
+                <div class="bg-purple-light d-inline-flex p-3 rounded-circle" style="color: var(--primary)">
+                    <i class="bi bi-tags fs-1"></i>
+                </div>
+                <p class="text-muted small mt-2">Organiza tus repuestos por familias para una mejor gestión.</p>
+            </div>
+            <div class="col-12">
+              <div class="floating-field">
+                <i class="bi bi-tag-fill input-icon"></i>
+                {{ category_form.nombre }}
+                <label for="{{ category_form.nombre.id_for_label }}">Nombre de la Categoría</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="floating-field">
+                <i class="bi bi-chat-left-text input-icon"></i>
+                {{ category_form.descripcion }}
+                <label for="{{ category_form.descripcion.id_for_label }}">Descripción (Opcional)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
+          <button type="button" class="btn-gc-outline border-0 bg-light text-muted" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn-gc px-4"><i class="bi bi-check-lg me-2"></i>Crear Categoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Product Registration Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
+      <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+        <h3 class="modal-title fs-4 fw-bold mb-0" id="productModalLabel" style="color: var(--text-dark)">Registrar Nuevo Producto</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'inventory:product_create' %}" method="post" autocomplete="off">
+        <div class="modal-body px-4 py-4">
+          {% csrf_token %}
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="floating-field">
+                <i class="bi bi-hash input-icon"></i>
+                {{ product_form.referencia }}
+                <label for="{{ product_form.referencia.id_for_label }}">Referencia / SKU</label>
+                {% if product_form.referencia.errors %}
+                  <div class="text-danger small mt-1" style="font-size: 11px;">{{ product_form.referencia.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="floating-field">
+                <i class="bi bi-box-seam input-icon"></i>
+                {{ product_form.nombre }}
+                <label for="{{ product_form.nombre.id_for_label }}">Nombre del Producto</label>
+                {% if product_form.nombre.errors %}
+                  <div class="text-danger small mt-1" style="font-size: 11px;">{{ product_form.nombre.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="floating-field">
+                <i class="bi bi-tags input-icon"></i>
+                {{ product_form.categoria }}
+                <label for="{{ product_form.categoria.id_for_label }}">Categoría</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="floating-field">
+                <i class="bi bi-truck input-icon"></i>
+                {{ product_form.proveedor }}
+                <label for="{{ product_form.proveedor.id_for_label }}">Proveedor Principal (Opcional)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="floating-field">
+                <i class="bi bi-stack input-icon"></i>
+                {{ product_form.stock_actual }}
+                <label for="{{ product_form.stock_actual.id_for_label }}">Stock Inicial</label>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="floating-field">
+                <i class="bi bi-shield-exclamation input-icon"></i>
+                {{ product_form.stock_minimo }}
+                <label for="{{ product_form.stock_minimo.id_for_label }}">Stock Mínimo</label>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="floating-field">
+                <i class="bi bi-currency-dollar input-icon"></i>
+                {{ product_form.precio }}
+                <label for="{{ product_form.precio.id_for_label }}">Precio de Venta ($)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-check form-switch mt-2">
+            {{ product_form.is_active }}
+            <label class="form-check-label ms-2 text-muted small" for="{{ product_form.is_active.id_for_label }}">Producto Activo</label>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4 pt-0 gap-2">
+          <button type="button" class="btn-gc-outline border-0 bg-light text-muted" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn-gc px-4"><i class="bi bi-floppy-fill me-2"></i>Guardar Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const tableRows = document.querySelectorAll('.table-gc tbody tr');
+
+    function filterTable() {
+        const query = searchInput.value.toLowerCase().trim();
+        const selectedCategory = categoryFilter.value.toLowerCase();
+
+        tableRows.forEach(row => {
+            const reference = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+            const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const category = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+
+            const matchesSearch = reference.includes(query) || name.includes(query);
+            
+            let matchesCategory = false;
+            if (selectedCategory === '') {
+                // Si no hay filtro de categoría, ocultamos "servicios" por defecto
+                matchesCategory = (category !== 'servicios');
+            } else {
+                // Si hay un filtro, debe coincidir exactamente
+                matchesCategory = (category === selectedCategory);
+            }
+
+            if (matchesSearch && matchesCategory) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Mostrar mensaje de "no resultados"
+        const visibleRows = Array.from(tableRows).filter(row => row.style.display !== 'none');
+        let noResultsMsg = document.getElementById('noResultsMessage');
+        
+        if (visibleRows.length === 0 && tableRows.length > 0) {
+            if (!noResultsMsg) {
+                const tbody = document.querySelector('.table-gc tbody');
+                noResultsMsg = document.createElement('tr');
+                noResultsMsg.id = 'noResultsMessage';
+                noResultsMsg.innerHTML = `<td colspan="8" class="text-center py-4 text-muted">No se encontraron productos que coincidan con los filtros.</td>`;
+                tbody.appendChild(noResultsMsg);
+            }
+        } else if (noResultsMsg) {
+            noResultsMsg.remove();
+        }
+    }
+
+    if (searchInput) searchInput.addEventListener('input', filterTable);
+    if (categoryFilter) categoryFilter.addEventListener('change', filterTable);
+
+    // Ejecutar filtro al cargar para ocultar servicios por defecto
+    filterTable();
+});
+</script>
+{% endblock %}

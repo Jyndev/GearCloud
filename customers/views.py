@@ -4,8 +4,11 @@ from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 from django.http import JsonResponse
 from django.contrib import messages
+from django.db.models import Sum, Q
 from .models import Customer, Motorcycle
 from .forms import CustomerForm, MotorcycleForm
+from maintenance.models import MaintenanceOrder
+from billing.models import Invoice
 
 def is_reception_or_admin(user):
     return user.is_authenticated and user.role in ['ADMIN', 'RECEPCION']
@@ -79,11 +82,39 @@ def customer_detail(request, pk):
     motos = customer_obj.motorcycles.all()
     create_form = MotorcycleForm()
     
+    # --- Estadísticas del Cliente ---
+    # Total de órdenes vinculadas a sus motos
+    total_orders = MaintenanceOrder.objects.filter(moto__owner=customer_obj).count()
+    
+    # Mantenimientos completados o entregados
+    completed_orders = MaintenanceOrder.objects.filter(
+        moto__owner=customer_obj,
+        estado__in=['COMPLETADO', 'ENTREGADO']
+    ).count()
+    
+    # Total invertido por el cliente (suma de facturas pagadas)
+    total_spent = Invoice.objects.filter(
+        cliente=customer_obj,
+        estado='PAGADA'
+    ).aggregate(total=Sum('total'))['total'] or 0
+    
+    # Historial de Servicios (Ordenes de mantenimiento)
+    service_history = MaintenanceOrder.objects.filter(
+        moto__owner=customer_obj
+    ).select_related('moto').order_by('-created_at')
+    
     return render(request, 'customers/customer_detail.html', {
         'customer': customer_obj,
         'motos': motos,
-        'create_form': create_form
+        'create_form': create_form,
+        'stats': {
+            'total_orders': total_orders,
+            'completed_orders': completed_orders,
+            'total_spent': total_spent,
+        },
+        'service_history': service_history
     })
+
 
 @reception_required
 def add_motorcycle(request, customer_pk):
